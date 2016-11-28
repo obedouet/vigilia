@@ -1,0 +1,76 @@
+<HTML>
+<HEAD>
+<meta http-equiv=refresh content='300'>
+<TITLE>VIGILIA STATUS</TITLE>
+<link rel="stylesheet" type="text/css" href="http://cdn.datatables.net/1.10.5/css/jquery.dataTables.css">
+<STYLE type="text/css">
+<!--
+
+.menubar, 
+.menubar a
+{
+    color: #0000f0;
+    text-decoration: none;
+}
+
+.menubar {
+    background: #cae2ff;
+}
+
+.menu,
+.menuitem,
+.menuopen,
+.menuactive
+ {      font-size: 10px;
+        font-family: sans-serif;
+       }
+       
+.menuactive {
+        background: #a0a0ff;
+       }
+
+a.menulink {
+	color: #0000f0;
+	}
+
+a.menulinkactive:hover {
+        color: #000000;
+}
+	
+a.menulink:hover       {
+        color: #cc0000;
+        }
+-->
+</STYLE>
+	<script type="text/javascript" language="javascript" src="//code.jquery.com/jquery-1.11.1.min.js"></script>
+	<script type="text/javascript" language="javascript" src="//cdn.datatables.net/1.10.5/js/jquery.dataTables.min.js"></script>
+		<script type="text/javascript" class="init">
+
+
+$(document).ready(function() {
+	var table = $('#main_table').DataTable( {
+		"scrollY": "500px",
+		"paging": false
+	} );
+
+	$('a.toggle-vis').on( 'click', function (e) {
+		e.preventDefault();
+
+		// Get the column API object
+		var column = table.column( $(this).attr('data-column') );
+
+		// Toggle the visibility
+		column.visible( ! column.visible() );
+	} );
+} );
+
+
+	</script>
+<SCRIPT language="javascript">
+function affichage_popup(nom_de_la_page, nom_interne_de_la_fenetre)
+{
+window.open (nom_de_la_page, nom_interne_de_la_fenetre,"height=600, width=800, directories=no, menubar=no, status=no, location=no, scrollbars=yes, resizable=yes");
+}
+</SCRIPT>
+
+</HEAD>
