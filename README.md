@@ -10,3 +10,23 @@ Pour chaque poll,on enregistre:
 
 Tout est stocke en base RRDTOOL.
 
+## Target
+
+VIGILIA est oriente vers l'Internet Francais avec une liste representative de sites FR.
+
+## Pre-requis
+
+rrdtool
+mtr
+
+## Install
+
+Idealement, creez un dossier /home/vigilia puis recopier le git:
+
+cd /home/vigilia
+git clone https://github.com/obedouet/vigilia.git
+
+Lancez install.sh, il verifiera les pre-requis et vous indiquera les ajouts necessaires pour la crontab. Idealement, utilisez le user vigilia cree a l'install.
+
+Enfin, il vous faudra configurer Apache ou Nginx pour pointer sur le dossier www
+
