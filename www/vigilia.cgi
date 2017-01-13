@@ -36,110 +36,49 @@ cgi_getvars BOTH ALL
 
 #
 # Fonctions
-function http_time_graph {
-_graph=$1
-_rrd_source=$2
-_title=$3
-_start=$4
-${RRD_BIN}/rrdtool graph ${WWW_REP}/img/${_graph} --title="$_title" \
-	--start -$_start --height 137 --width 900 --lower-limit=0 --step 15 \
-	--imgformat=PNG \
-	--alt-autoscale-max \
-	--vertical-label='seconds' \
-	DEF:http_time=${VIGILIA_BASE}/analyse/${_rrd_source}:data:AVERAGE \
-	CDEF:time=http_time,1000000000,/ \
-	CDEF:zero=time,0,EQ,INF,UNKN,IF \
-	CDEF:noValue=time,UN,INF,UNKN,IF \
-	GPRINT:time:LAST:"Current\:%2.3lf"  \
-	GPRINT:time:AVERAGE:"Average\:%2.3lf"  \
-	GPRINT:time:MAX:"Max\:%2.3lf"  \
-	AREA:noValue#ddccaa:"Pas de valeurs\n" \
-	AREA:zero#ff0000:"Coupure\n" \
-	AREA:time#0000ee:"HTTP response time\n" >> /tmp/vigilia_rrdtool.log 2>&1
-}
+. ${WWW_REP}/rrd_func.sh
 
-function http_speed_graph {
-_graph=$1
-_rrd_source=$2
-_title=$3
-_start=$4
-${RRD_BIN}/rrdtool graph ${WWW_REP}/img/${_graph} --title="${_title}" \
-	--start -$_start --height 137 --width 900 --lower-limit=0 --step 300 \
-	--imgformat=PNG \
-	--alt-autoscale-max \
-	--vertical-label='bits/second' \
-	DEF:http_speed=${VIGILIA_BASE}/analyse/$_rrd_source:data:AVERAGE \
-	CDEF:http_speed_bits=http_speed,8,* \
-	CDEF:zero=http_speed,0,EQ,INF,UNKN,IF \
-	CDEF:noValue=http_speed,UN,INF,UNKN,IF \
-	GPRINT:http_speed_bits:LAST:"Current\:%2.3lf"  \
-	GPRINT:http_speed_bits:AVERAGE:"Average\:%2.3lf"  \
-	GPRINT:http_speed_bits:MAX:"Max\:%2.3lf"  \
-	AREA:noValue#ddccaa:"Pas de valeurs\n" \
-	AREA:zero#ff0000:"Coupure\n" \
-	AREA:http_speed_bits#0000ee:"HTTP speed\n" >> /tmp/vigilia_rrdtool.log
-}
-
-function dns_time_graph {
-_graph=$1
-_rrd_source=$2
-_title=$3
-_start=$4
-${RRD_BIN}/rrdtool graph ${WWW_REP}/img/${_graph} --title="${_title}" \
-	--start -$_start --height 137 --width 900 --lower-limit=0 --step 15 \
-	--imgformat=PNG \
-	--alt-autoscale-max \
-	--vertical-label='seconds' \
-	DEF:time=${VIGILIA_BASE}/analyse/$_rrd_source:data:AVERAGE \
-	CDEF:zero=time,0,EQ,INF,UNKN,IF \
-	CDEF:noValue=time,UN,INF,UNKN,IF \
-	GPRINT:time:LAST:"Current\:%2.3lf"  \
-	GPRINT:time:AVERAGE:"Average\:%2.3lf"  \
-	GPRINT:time:MAX:"Max\:%2.3lf"  \
-	AREA:noValue#ddccaa:"Pas de valeurs\n" \
-	AREA:zero#ff0000:"Coupure\n" \
-	AREA:time#0000ee:"DNS response time\n" >> /tmp/vigilia_rrdtool.log
-}
-
-function netstat_errors_graph {
-_graph=$1
-_rrd_source=$2
-_title=$3
-_start=$4
-${RRD_BIN}/rrdtool graph ${WWW_REP}/img/${_graph} --title="${_title}" \
-	--start -$_start --height 137 --width 900 --lower-limit=0 --step 300 \
-	--imgformat=PNG \
-	--alt-autoscale-max \
-	DEF:errors=${VIGILIA_BASE}/analyse/$_rrd_source:data:AVERAGE \
-	GPRINT:errors:LAST:"Current\:%3.0lf"  \
-	GPRINT:errors:AVERAGE:"Average\:%3.0lf"  \
-	GPRINT:errors:MAX:"Max\:%3.0lf"  \
-	LINE1:errors#0000ee:"Erreurs\n" >> /tmp/vigilia_rrdtool.log
-}
-
-function mtr_hops_graph {
-_graph=$1
-_rrd_source=$2
-_title=$3
-_start=$4
-${RRD_BIN}/rrdtool graph ${WWW_REP}/img/${_graph} --title="${_title}" \
-	--start -$_start --height 137 --width 900 --lower-limit=0 --step 900 \
-	--rigid \
-	--imgformat=PNG \
-	--alt-autoscale-max \
-	--vertical-label='nb hop in path' \
-	--slope-mode \
-	DEF:nb_hop=${VIGILIA_BASE}/analyse/$_rrd_source:data:AVERAGE \
-	CDEF:zero=nb_hop,0,EQ,INF,UNKN,IF \
-	CDEF:noValue=nb_hop,UN,INF,UNKN,IF \
-	GPRINT:nb_hop:LAST:"Current\:%3.0lf"  \
-	GPRINT:nb_hop:AVERAGE:"Average\:%3.0lf"  \
-	GPRINT:nb_hop:MAX:"Max\:%3.0lf"  \
-	AREA:noValue#ddccaa:"Pas de valeurs\n" \
-	AREA:zero#ff0000:"Coupure\n" \
-	AREA:nb_hop#0000ee:"Nombre de hops\n" > /tmp/vigilia_rrdtool.log
-}
-
+if [ -n "$img" ]
+then
+	echo 'Content-type:image/png';
+	echo '';
+	case $period in
+	"H24") start=86400
+	;;
+	"J7") start=7d
+	;;
+	"J30") start=30d
+	;;
+	*) start=86400
+	esac
+	if [ "$type" = "http_time" ]
+	then
+		http_time_graph pouet $img/http_time.rrd "${img} - HTTP Latency - Periode = ${period}" $start
+	elif [ "$type" = "http6_time" ]
+	then
+		http_time_graph pouet $img/http6_time.rrd "${img} - HTTP IPv6 Latency - Periode = ${period}" $start
+	elif [ "$type" = "http_speed" ]
+	then
+		http_speed_graph - $img/http_speed.rrd "${img} - HTTP Speed - Periode = ${period}" $start
+	elif [ "$type" = "dns_time" ]
+	then
+		dns_time_graph "-" $img/dns_time.rrd "${img} - DNS Latency - Periode = $period" $start
+	elif [ "$type" = "mtr_hops" ]
+	then
+		mtr_hops_graph - $img/path_nb_hop.rrd "${img} - MTR Hops - Periode = ${period}" $start
+	elif [ "$type" = "netstat_errors" ]
+	then
+		netstat_errors_graph - $img/netstat_error.rrd "${img} - TCP errors - Periode = $period" $start
+	elif [ "$type" = "resume_netstat" ]
+	then
+		make_graph_resume titre $start errors
+	elif [ "$type" = "resume_http" ]
+	then
+		make_graph_resume titre $start http_time
+	else
+		echo 'unsupported type';
+	fi
+else
 #
 # En-tete
 #
@@ -195,170 +134,30 @@ then
 		# Il est possible de deactiver l'affichage des graphes RRD
 		# en supprimant la variable RESUME dans /etc/vigilia/base.cfg
 
-		cat /etc/vigilia/target.cfg | while read LINE
-		do
-			SITE=`echo $LINE | awk '{print $1}'`
-			METHOD=`echo $LINE | awk '{print $3}'`
-
-			if [ "$METHOD" = "http" ]
-			then
-				# Effectue la somme de toutes les sources http et erreurs TCP
-				VNAME=`echo ${SITE} | tr '.' '_'`
-
-				if [ -f ${VIGILIA_BASE}/analyse/$SITE/http_time.rrd ]
-				then
-					echo "DEF:err_${VNAME}=${VIGILIA_BASE}/analyse/$SITE/netstat_error.rrd:data:AVERAGE " >> /tmp/rrd_def
-					echo "DEF:http_${VNAME}=${VIGILIA_BASE}/analyse/$SITE/http_time.rrd:data:AVERAGE " >> /tmp/rrd_http_def
-					if [ ! -f /tmp/rrd_cdef ]
-					then
-						echo -n "err_${VNAME},UN,0,err_${VNAME},IF" > /tmp/rrd_cdef 
-					else
-						echo -n ",err_${VNAME},UN,0,err_${VNAME},IF,+" >> /tmp/rrd_cdef 
-					fi
-
-					if [ ! -f /tmp/rrd_http_cdef ]
-					then
-						echo -n "http_${VNAME},UN,0,http_${VNAME},IF" > /tmp/rrd_http_cdef
-					else
-						echo -n ",http_${VNAME},UN,0,http_${VNAME},IF,+" >> /tmp/rrd_http_cdef
-					fi
-				fi
-			fi
-
-		done
+		make_resume
 
 		if [ "$history" = "errors" ]
 		then
 			# Graphe de la somme des erreurs TCP
-			_graph=sum-errors-J1.png
-			${RRD_BIN}/rrdtool graph ${WWW_REP}/img/${_graph} --title="ALL TCP Errors - Periode = J-1" \
-			--start -1d --height 137 --width 900 --lower-limit=0 --step 300 \
-				--imgformat=PNG \
-				--alt-autoscale-max \
-				`cat /tmp/rrd_def` \
-				CDEF:errors=`cat /tmp/rrd_cdef` \
-				GPRINT:errors:LAST:"Current\:%3.0lf"  \
-				GPRINT:errors:AVERAGE:"Average\:%3.0lf"  \
-				GPRINT:errors:MAX:"Max\:%3.0lf"  \
-				LINE1:errors#0000ee:"Erreurs TCP\n" >> /tmp/vigilia_rrdtool.log 2>&1
-
-			echo "<img src=\"/img/sum-errors-J1.png\"></img> ";
-
-			# Graphe de la somme des erreurs TCP
-			_graph=sum-errors-J7.png
-			${RRD_BIN}/rrdtool graph ${WWW_REP}/img/${_graph} --title="ALL TCP Errors - Periode = J-7" \
-			--start -7d --height 137 --width 900 --lower-limit=0 --step 300 \
-				--imgformat=PNG \
-				--alt-autoscale-max \
-				`cat /tmp/rrd_def` \
-				CDEF:errors=`cat /tmp/rrd_cdef` \
-				GPRINT:errors:LAST:"Current\:%3.0lf"  \
-				GPRINT:errors:AVERAGE:"Average\:%3.0lf"  \
-				GPRINT:errors:MAX:"Max\:%3.0lf"  \
-				LINE1:errors#0000ee:"Erreurs TCP\n" >> /tmp/vigilia_rrdtool.log 2>&1
-
-			echo "<img src=\"/img/sum-errors-J7.png\"></img> ";
-
-			# Graphe de la somme des erreurs TCP
-			_graph=sum-errors-J30.png
-			${RRD_BIN}/rrdtool graph ${WWW_REP}/img/${_graph} --title="ALL TCP Errors - Periode = J-30" \
-			--start -30d --height 137 --width 900 --lower-limit=0 --step 300 \
-				--imgformat=PNG \
-				--alt-autoscale-max \
-				`cat /tmp/rrd_def` \
-				CDEF:errors=`cat /tmp/rrd_cdef` \
-				GPRINT:errors:LAST:"Current\:%3.0lf"  \
-				GPRINT:errors:AVERAGE:"Average\:%3.0lf"  \
-				GPRINT:errors:MAX:"Max\:%3.0lf"  \
-				LINE1:errors#0000ee:"Erreurs TCP\n" > /tmp/vigilia_rrdtool.log 2>&1
-
-			echo "<img src=\"/img/sum-errors-J30.png\"></img> ";
+			echo "<img src=\"vigilia.cgi?img=resume&type=resume_netstat&period=J1\"></img> ";
+			echo "<img src=\"vigilia.cgi?img=resume&type=resume_netstat&period=J7\"></img> ";
+			echo "<img src=\"vigilia.cgi?img=resume&type=resume_netstat&period=J30\"></img> ";
 		elif [ "$history" = "http_time" ]
 		then
 			# Graphe de la somme des temps de reponse HTTP
-			_graph=sum-http_time-J1.png
-			${RRD_BIN}/rrdtool graph ${WWW_REP}/img/${_graph} --title="ALL HTTP latency - Periode = J-1" \
-				--start -1d --height 137 --width 900 --lower-limit=0 --step 300 \
-				--imgformat=PNG \
-				--alt-autoscale-max \
-				`cat /tmp/rrd_http_def` \
-				CDEF:http_time=`cat /tmp/rrd_http_cdef`,1000000000,/ \
-				GPRINT:http_time:LAST:"Current\:%3.0lf"  \
-				GPRINT:http_time:AVERAGE:"Average\:%3.0lf"  \
-				GPRINT:http_time:MAX:"Max\:%3.0lf"  \
-				AREA:http_time#0000ee:"HTTP response time\n" > /tmp/vigilia_rrdtool.log 2>&1
-
-			echo "<img src=\"/img/sum-http_time-J1.png\"></img> ";
-
-			# Graphe de la somme des temps de reponse HTTP
-			_graph=sum-http_time-J7.png
-			${RRD_BIN}/rrdtool graph ${WWW_REP}/img/${_graph} --title="ALL HTTP latency - Periode = J-7" \
-				--start -7d --height 137 --width 900 --lower-limit=0 --step 300 \
-				--imgformat=PNG \
-				--alt-autoscale-max \
-				`cat /tmp/rrd_http_def` \
-				CDEF:http_time=`cat /tmp/rrd_http_cdef`,1000000000,/ \
-				GPRINT:http_time:LAST:"Current\:%3.0lf"  \
-				GPRINT:http_time:AVERAGE:"Average\:%3.0lf"  \
-				GPRINT:http_time:MAX:"Max\:%3.0lf"  \
-				AREA:http_time#0000ee:"HTTP response time\n" > /tmp/vigilia_rrdtool.log 2>&1
-
-			echo "<img src=\"/img/sum-http_time-J7.png\"></img> ";
-
-			# Graphe de la somme des temps de reponse HTTP
-			_graph=sum-http_time-J30.png
-			${RRD_BIN}/rrdtool graph ${WWW_REP}/img/${_graph} --title="ALL HTTP latency - Periode = J-30" \
-				--start -30d --height 137 --width 900 --lower-limit=0 --step 300 \
-				--imgformat=PNG \
-				--alt-autoscale-max \
-				`cat /tmp/rrd_http_def` \
-				CDEF:http_time=`cat /tmp/rrd_http_cdef`,1000000000,/ \
-				GPRINT:http_time:LAST:"Current\:%3.0lf"  \
-				GPRINT:http_time:AVERAGE:"Average\:%3.0lf"  \
-				GPRINT:http_time:MAX:"Max\:%3.0lf"  \
-				AREA:http_time#0000ee:"HTTP response time\n" > /tmp/vigilia_rrdtool.log 2>&1
-
-			echo "<img src=\"/img/sum-http_time-J30.png\"></img> ";
+			echo "<img src=\"vigilia.cgi?img=resume&type=resume_http&period=J1\"></img> ";
+			echo "<img src=\"vigilia.cgi?img=resume&type=resume_http&period=J7\"></img> ";
+			echo "<img src=\"vigilia.cgi?img=resume&type=resume_http&period=J30\"></img> ";
 		else
-			if [ -f /tmp/rrd_def ]
-			then
 			# Graphe de la somme des erreurs TCP
-			_graph=sum-errors-J1.png
-			${RRD_BIN}/rrdtool graph ${WWW_REP}/img/${_graph} --title="ALL TCP Errors - Periode = J-1" \
-			--start -1d --height 137 --width 900 --lower-limit=0 --step 300 \
-				--imgformat=PNG \
-				--alt-autoscale-max \
-				`cat /tmp/rrd_def` \
-				CDEF:errors=`cat /tmp/rrd_cdef` \
-				GPRINT:errors:LAST:"Current\:%3.0lf"  \
-				GPRINT:errors:AVERAGE:"Average\:%3.0lf"  \
-				GPRINT:errors:MAX:"Max\:%3.0lf"  \
-				LINE1:errors#0000ee:"Erreurs TCP\n" > /tmp/vigilia_rrdtool.log 2>&1
-
 			echo "<a href=\"vigilia.cgi?history=errors\"> ";
-			echo "<img src=\"/img/sum-errors-J1.png\"></img> ";
+			echo "<img src=\"vigilia.cgi?img=resume&type=resume_netstat&period=J1\"></img> ";
 			echo "</a>";
-			fi
 
-			if [ -f /tmp/rrd_http_def ]
-			then
 			# Graphe de la somme des temps de reponse HTTP
-			_graph=sum-http_time-J1.png
-			${RRD_BIN}/rrdtool graph ${WWW_REP}/img/${_graph} --title="ALL HTTP latency - Periode = J-1" \
-				--start -1d --height 137 --width 900 --lower-limit=0 --step 300 \
-				--imgformat=PNG \
-				--alt-autoscale-max \
-				`cat /tmp/rrd_http_def` \
-				CDEF:http_time=`cat /tmp/rrd_http_cdef`,1000000000,/ \
-				GPRINT:http_time:LAST:"Current\:%3.0lf"  \
-				GPRINT:http_time:AVERAGE:"Average\:%3.0lf"  \
-				GPRINT:http_time:MAX:"Max\:%3.0lf"  \
-				AREA:http_time#0000ee:"HTTP response time\n" > /tmp/vigilia_rrdtool.log 2>&1
-
 			echo "<a href=\"vigilia.cgi?history=http_time\"> ";
-			echo "<img src=\"/img/sum-http_time-J1.png\"></img> ";
+			echo "<img src=\"vigilia.cgi?img=resume&type=resume_http&period=J1\"></img> ";
 			echo "</a>";
-			fi
 
 			# Affiche les worst
 			echo " <pre><table border=\"1\" cellpadding=\"0\" cellspacing=\"1\" bgcolor=\"#E1E1E1\" width=\"25%\">";
@@ -404,10 +203,10 @@ then
 		#cat /tmp/rrd_http_cdef
 		#echo "</pre>";
 
-		rm -f /tmp/rrd_def
-		rm -f /tmp/rrd_cdef
-		rm -f /tmp/rrd_http_def
-		rm -f /tmp/rrd_http_cdef
+		#rm -f /tmp/rrd_def
+		#rm -f /tmp/rrd_cdef
+		#rm -f /tmp/rrd_http_def
+		#rm -f /tmp/rrd_http_cdef
 	fi
 
 	# Affiche les hops avec le plus de drop
@@ -461,11 +260,7 @@ then
 			echo "<tr><td>" >> /tmp/dns.html
 			echo $SITE >>/tmp/dns.html
 			echo "</td><td>" >> /tmp/dns.html
-			#grep real ${VIGILIA_SPOOL}/dns/$SITE >> /tmp/dns.html
-			STATUS=`grep timed ${VIGILIA_SPOOL}/dns/$SITE`
-			[ -z "$STATUS" ] && STATUS=`grep REFUSED ${VIGILIA_SPOOL}/dns/$SITE`
-			[ -z "$STATUS" ] && STATUS=`grep real ${VIGILIA_SPOOL}/dns/$SITE`
-			echo ${STATUS} >> /tmp/dns.html
+			grep real ${VIGILIA_SPOOL}/dns/$SITE >> /tmp/dns.html
 			echo "</td></tr>" >> /tmp/dns.html
 		elif [ "$METHOD" = "tcp" ]
 		then
@@ -538,56 +333,64 @@ else
 	if [ -f ${VIGILIA_BASE}/analyse/$target/path_nb_hop.rrd -a -z "$history" ]
 	then
 		# H-24
-		_graph=${target}-nb_hop-H24.png
-		mtr_hops_graph $_graph $target/path_nb_hop.rrd "${target} - MTR Hops - Periode = H-24" 1d
+		#_graph=${target}-nb_hop-H24.png
+		#mtr_hops_graph $_graph $target/path_nb_hop.rrd "${target} - MTR Hops - Periode = H-24" 1d
 		echo "<a href=\"vigilia.cgi?target=${target}&history=nb_hop\"> ";
-		echo "<img src=\"/img/${target}-nb_hop-H24.png\"></img> ";
+		#echo "<img src=\"/img/${target}-nb_hop-H24.png\"></img> ";
+		echo "<img src=\"vigilia.cgi?img=${target}&type=mtr_hops&period=H24\"></img> ";
 		echo "</a>";
 
 	elif [ "$history" = "nb_hop" ]
 	then
 		# H-24
-		_graph=${target}-nb_hop-H24.png
-		mtr_hops_graph $_graph $target/path_nb_hop.rrd "${target} - MTR Hops - Periode = H-24" 1d
-		echo "<img src=\"/img/${target}-nb_hop-H24.png\"></img> ";
+		#_graph=${target}-nb_hop-H24.png
+		#mtr_hops_graph $_graph $target/path_nb_hop.rrd "${target} - MTR Hops - Periode = H-24" 1d
+		#echo "<img src=\"/img/${target}-nb_hop-H24.png\"></img> ";
+		echo "<img src=\"vigilia.cgi?img=${target}&type=mtr_hops&period=H24\"></img> ";
 
 		# J-7
-		_graph=${target}-nb_hop-J7.png
-		mtr_hops_graph $_graph $target/path_nb_hop.rrd "${target} - MTR Hops - Periode = J-7" 7d
-		echo "<img src=\"/img/${target}-nb_hop-J7.png\"></img> ";
+		#_graph=${target}-nb_hop-J7.png
+		#mtr_hops_graph $_graph $target/path_nb_hop.rrd "${target} - MTR Hops - Periode = J-7" 7d
+		#echo "<img src=\"/img/${target}-nb_hop-J7.png\"></img> ";
+		echo "<img src=\"vigilia.cgi?img=${target}&type=mtr_hops&period=J7\"></img> ";
 
 		# J-30
-		_graph=${target}-nb_hop-J30.png
-		mtr_hops_graph $_graph $target/path_nb_hop.rrd "${target} - MTR Hops - Periode = J-30" 30d
-		echo "<img src=\"/img/${target}-nb_hop-J30.png\"></img> ";
+		#_graph=${target}-nb_hop-J30.png
+		#mtr_hops_graph $_graph $target/path_nb_hop.rrd "${target} - MTR Hops - Periode = J-30" 30d
+		#echo "<img src=\"/img/${target}-nb_hop-J30.png\"></img> ";
+		echo "<img src=\"vigilia.cgi?img=${target}&type=mtr_hops&period=J30\"></img> ";
 	fi
 
 	# Netstat error
 	if [ -f ${VIGILIA_BASE}/analyse/$target/netstat_error.rrd -a -z "$history" ]
 	then
 		# H-24
-		_graph=${target}-errors-H24.png
-		netstat_errors_graph $_graph $target/netstat_error.rrd "${target} - TCP errors - Periode = H-24" 86400
+		#_graph=${target}-errors-H24.png
+		#netstat_errors_graph $_graph $target/netstat_error.rrd "${target} - TCP errors - Periode = H-24" 86400
 
 		echo "<a href=\"vigilia.cgi?target=${target}&history=netstat\"> ";
-		echo "<img src=\"/img/${target}-errors-H24.png\"></img> ";
+		#echo "<img src=\"/img/${target}-errors-H24.png\"></img> ";
+		echo "<img src=\"vigilia.cgi?img=${target}&type=netstat_errors&period=H24\"></img> ";
 		echo "</a>";
 	elif [ "$history" = "netstat" ]
 	then
 		# H-24
-		_graph=${target}-errors-H24.png
-		netstat_errors_graph $_graph $target/netstat_error.rrd "${target} - TCP errors - Periode = H-24" 86400
-		echo "<img src=\"/img/${target}-errors-H24.png\"></img> ";
+		#_graph=${target}-errors-H24.png
+		#netstat_errors_graph $_graph $target/netstat_error.rrd "${target} - TCP errors - Periode = H-24" 86400
+		#echo "<img src=\"/img/${target}-errors-H24.png\"></img> ";
+		echo "<img src=\"vigilia.cgi?img=${target}&type=netstat_errors&period=H24\"></img> ";
 
 		# J-7
-		_graph=${target}-errors-J7.png
-		netstat_errors_graph $_graph $target/netstat_error.rrd "${target} - TCP errors - Periode = J-7" 7d
-		echo "<img src=\"/img/${target}-errors-J7.png\"></img> ";
+		#_graph=${target}-errors-J7.png
+		#netstat_errors_graph $_graph $target/netstat_error.rrd "${target} - TCP errors - Periode = J-7" 7d
+		#echo "<img src=\"/img/${target}-errors-J7.png\"></img> ";
+		echo "<img src=\"vigilia.cgi?img=${target}&type=netstat_errors&period=J7\"></img> ";
 
 		# J-30
-		_graph=${target}-errors-J30.png
-		netstat_errors_graph $_graph $target/netstat_error.rrd "${target} - TCP errors - Periode = J-30" 30d
-		echo "<img src=\"/img/${target}-errors-J30.png\"></img> ";
+		#_graph=${target}-errors-J30.png
+		#netstat_errors_graph $_graph $target/netstat_error.rrd "${target} - TCP errors - Periode = J-30" 30d
+		#echo "<img src=\"/img/${target}-errors-J30.png\"></img> ";
+		echo "<img src=\"vigilia.cgi?img=${target}&type=netstat_errors&period=J30\"></img> ";
 
 	fi
 
@@ -595,27 +398,31 @@ else
 	if [ -f ${VIGILIA_BASE}/analyse/$target/dns_time.rrd -a -z "$history" ]
 	then
 		# H-24
-		_graph=${target}-dns-H1.png
-		dns_time_graph $_graph $target/dns_time.rrd "${target} - DNS Latency - Periode = H-1" 3600
+		_graph=${target}-dns-H24.png
+		#dns_time_graph $_graph $target/dns_time.rrd "${target} - DNS Latency - Periode = H-24" 86400
 		echo "<a href=\"vigilia.cgi?target=${target}&history=dns_time\"> ";
-		echo "<img src=\"/img/${target}-dns-H1.png\"></img> ";
+		#echo "<img src=\"/img/${target}-dns-H24.png\"></img> ";
+		echo "<img src=\"vigilia.cgi?img=${target}&type=dns_time&period=H24\"></img> ";
 		echo "</a>";
 	elif [ "$history" = "dns_time" ]
 	then
 		# H-24
-		_graph=${target}-dns-H1.png
-		dns_time_graph $_graph $target/dns_time.rrd "${target} - DNS Latency - Periode = H-1" 3600
-		echo "<img src=\"/img/${target}-dns-H1.png\"></img> ";
+		#_graph=${target}-dns-H24.png
+		#dns_time_graph $_graph $target/dns_time.rrd "${target} - DNS Latency - Periode = H-24" 86400
+		#echo "<img src=\"/img/${target}-dns-H24.png\"></img> ";
+		echo "<img src=\"vigilia.cgi?img=${target}&type=dns_time&period=H24\"></img> ";
 
 		# J-7
-		_graph=${target}-dns-J1.png
-		dns_time_graph $_graph $target/dns_time.rrd "${target} - DNS Latency - Periode = J-1" 1d
-		echo "<img src=\"/img/${target}-dns-J1.png\"></img> ";
+		#_graph=${target}-dns-J7.png
+		#dns_time_graph $_graph $target/dns_time.rrd "${target} - DNS Latency - Periode = J-7" 7d
+		#echo "<img src=\"/img/${target}-dns-J7.png\"></img> ";
+		echo "<img src=\"vigilia.cgi?img=${target}&type=dns_time&period=J7\"></img> ";
 
 		# J-30
-		_graph=${target}-dns-J7.png
-		dns_time_graph $_graph $target/dns_time.rrd "${target} - DNS Latency - Periode = J-7" 7d
-		echo "<img src=\"/img/${target}-dns-J7.png\"></img> ";
+		#_graph=${target}-dns-J30.png
+		#dns_time_graph $_graph $target/dns_time.rrd "${target} - DNS Latency - Periode = J-30" 30d
+		#echo "<img src=\"/img/${target}-dns-J30.png\"></img> ";
+		echo "<img src=\"vigilia.cgi?img=${target}&type=dns_time&period=J30\"></img> ";
 	fi
 
 	# HTTP response time
@@ -623,26 +430,30 @@ else
 	then
 		# H-24
 		_graph=${target}-http_time-H24.png
-		http_time_graph $_graph $target/http_time.rrd "${target} - HTTP Latency - Periode = H-24" 86400
+		#http_time_graph $_graph $target/http_time.rrd "${target} - HTTP Latency - Periode = H-24" 86400
 		echo "<a href=\"vigilia.cgi?target=${target}&history=http_time\"> ";
-		echo "<img src=\"/img/${target}-http_time-H24.png\"></img> ";
+		#echo "<img src=\"/img/${target}-http_time-H24.png\"></img> ";
+		echo "<img src=\"vigilia.cgi?img=${target}&type=http_time&period=H24\"></img> ";
 		echo "</a>";
 	elif [ "$history" = "http_time" ]
 	then
 		# H-24
 		_graph=${target}-http_time-H24.png
-		http_time_graph $_graph $target/http_time.rrd "${target} - HTTP Latency - Periode = H-24" 86400
-		echo "<img src=\"/img/${target}-http_time-H24.png\"></img> ";
+		#http_time_graph $_graph $target/http_time.rrd "${target} - HTTP Latency - Periode = H-24" 86400
+		#echo "<img src=\"/img/${target}-http_time-H24.png\"></img> ";
+		echo "<img src=\"vigilia.cgi?img=${target}&type=http_time&period=H24\"></img> ";
 
 		# J-7
 		_graph=${target}-http_time-J7.png
-		http_time_graph $_graph $target/http_time.rrd "${target} - HTTP Latency - Periode = J-7" 7d
-		echo "<img src=\"/img/${target}-http_time-J7.png\"></img> ";
+		#http_time_graph $_graph $target/http_time.rrd "${target} - HTTP Latency - Periode = J-7" 7d
+		#echo "<img src=\"/img/${target}-http_time-J7.png\"></img> ";
+		echo "<img src=\"vigilia.cgi?img=${target}&type=http_time&period=J7\"></img> ";
 
 		# J-30
 		_graph=${target}-http_time-J30.png
-		http_time_graph $_graph $target/http_time.rrd "${target} - HTTP Latency - Periode = J-30" 30d
-		echo "<img src=\"/img/${target}-http_time-J30.png\"></img> ";
+		#http_time_graph $_graph $target/http_time.rrd "${target} - HTTP Latency - Periode = J-30" 30d
+		#echo "<img src=\"/img/${target}-http_time-J30.png\"></img> ";
+		echo "<img src=\"vigilia.cgi?img=${target}&type=http_time&period=J30\"></img> ";
 	fi
 
 	# HTTP IPv6 response time
@@ -650,53 +461,61 @@ else
 	then
 		# H-24
 		_graph=${target}-http6_time-H24.png
-		http_time_graph $_graph $target/http6_time.rrd "${target} - HTTP IPv6 Latency - Periode = H-24" 86400
+		#http_time_graph $_graph $target/http6_time.rrd "${target} - HTTP IPv6 Latency - Periode = H-24" 86400
 		echo "<a href=\"vigilia.cgi?target=${target}&history=http6_time\"> ";
-		echo "<img src=\"/img/${target}-http6_time-H24.png\"></img> ";
+		#echo "<img src=\"/img/${target}-http6_time-H24.png\"></img> ";
+		echo "<img src=\"vigilia.cgi?img=${target}&type=http6_time&period=H24\"></img> ";
 		echo "</a>";
 	elif [ "$history" = "http6_time" ]
 	then
 		# H-24
 		_graph=${target}-http6_time-H24.png
-		http_time_graph $_graph $target/http6_time.rrd "${target} - HTTP IPv6 Latency - Periode = H-24" 86400
-		echo "<img src=\"/img/${target}-http6_time-H24.png\"></img> ";
+		#http_time_graph $_graph $target/http6_time.rrd "${target} - HTTP IPv6 Latency - Periode = H-24" 86400
+		#echo "<img src=\"/img/${target}-http6_time-H24.png\"></img> ";
+		echo "<img src=\"vigilia.cgi?img=${target}&type=http6_time&period=H24\"></img> ";
 
 		# J-7
-		_graph=${target}-http6_time-J7.png
-		http_time_graph $_graph $target/http6_time.rrd "${target} - HTTP IPv6 Latency - Periode = J-7" 7d
-		echo "<img src=\"/img/${target}-http6_time-J7.png\"></img> ";
+		#_graph=${target}-http6_time-J7.png
+		#http_time_graph $_graph $target/http6_time.rrd "${target} - HTTP IPv6 Latency - Periode = J-7" 7d
+		#echo "<img src=\"/img/${target}-http6_time-J7.png\"></img> ";
+		echo "<img src=\"vigilia.cgi?img=${target}&type=http6_time&period=J7\"></img> ";
 
 		# J-30
-		_graph=${target}-http6_time-J30.png
-		http_time_graph $_graph $target/http6_time.rrd "${target} - HTTP IPv6 Latency - Periode = J-30" 30d
-		echo "<img src=\"/img/${target}-http6_time-J30.png\"></img> ";
+		#_graph=${target}-http6_time-J30.png
+		#http_time_graph $_graph $target/http6_time.rrd "${target} - HTTP IPv6 Latency - Periode = J-30" 30d
+		#echo "<img src=\"/img/${target}-http6_time-J30.png\"></img> ";
+		echo "<img src=\"vigilia.cgi?img=${target}&type=http6_time&period=J30\"></img> ";
 	fi
 
 	# HTTP Speed
 	if [ -f ${VIGILIA_BASE}/analyse/$target/http_speed.rrd -a -z "$history" ]
 	then
 		# H-24
-		_graph=${target}-http_speed-H24.png
-		http_speed_graph $_graph $target/http_speed.rrd "${target} - HTTP Speed - Periode = H-24" 1d
+		#_graph=${target}-http_speed-H24.png
+		#http_speed_graph $_graph $target/http_speed.rrd "${target} - HTTP Speed - Periode = H-24" 1d
 		echo "<a href=\"vigilia.cgi?target=${target}&history=http_speed\"> ";
-		echo "<img src=\"/img/${target}-http_speed-H24.png\"></img> ";
+		echo "<img src=\"vigilia.cgi?img=${target}&type=http_speed&period=H24\"></img> ";
+		#echo "<img src=\"/img/${target}-http_speed-H24.png\"></img> ";
 		echo "</a>";
 	elif [ "$history" = "http_speed" ]
 	then
 		# H-24
-		_graph=${target}-http_speed-H24.png
-		http_speed_graph $_graph $target/http_speed.rrd "${target} - HTTP Speed - Periode = H-24" 1d
-		echo "<img src=\"/img/${target}-http_speed-H24.png\"></img> ";
+		#_graph=${target}-http_speed-H24.png
+		#http_speed_graph $_graph $target/http_speed.rrd "${target} - HTTP Speed - Periode = H-24" 1d
+		#echo "<img src=\"/img/${target}-http_speed-H24.png\"></img> ";
+		echo "<img src=\"vigilia.cgi?img=${target}&type=http_speed&period=H24\"></img> ";
 
 		# J-7
-		_graph=${target}-http_speed-J7.png
-		http_speed_graph $_graph $target/http_speed.rrd "${target} - HTTP Speed - Periode = J-7" 7d
-		echo "<img src=\"/img/${target}-http_speed-J7.png\"></img> ";
+		#_graph=${target}-http_speed-J7.png
+		#http_speed_graph $_graph $target/http_speed.rrd "${target} - HTTP Speed - Periode = J-7" 7d
+		#echo "<img src=\"/img/${target}-http_speed-J7.png\"></img> ";
+		echo "<img src=\"vigilia.cgi?img=${target}&type=http_speed&period=J7\"></img> ";
 
 		# J-30
-		_graph=${target}-http_speed-J30.png
-		http_speed_graph $_graph $target/http_speed.rrd "${target} - HTTP Speed - Periode = J-30" 30d
-		echo "<img src=\"/img/${target}-http_speed-J30.png\"></img> ";
+		#_graph=${target}-http_speed-J30.png
+		#http_speed_graph $_graph $target/http_speed.rrd "${target} - HTTP Speed - Periode = J-30" 30d
+		#echo "<img src=\"/img/${target}-http_speed-J30.png\"></img> ";
+		echo "<img src=\"vigilia.cgi?img=${target}&type=http_speed&period=J30\"></img> ";
 	fi
 
 	# Affichage des logs
@@ -781,3 +600,4 @@ echo " </table> ";
 echo " </BODY> ";
 echo " </HTML>";
 
+fi
